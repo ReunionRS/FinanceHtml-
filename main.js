@@ -1,7 +1,11 @@
 // DOM Elements
 const registrationForm = document.getElementById('registrationForm');
+const loginForm = document.getElementById('loginForm');
 const dashboard = document.getElementById('dashboard');
 const authForm = document.getElementById('authForm');
+const loginAuthForm = document.getElementById('loginAuthForm');
+const showLoginBtn = document.getElementById('showLoginBtn');
+const showRegisterBtn = document.getElementById('showRegisterBtn');
 const menuBtn = document.getElementById('menuBtn');
 const sideNav = document.getElementById('sideNav');
 const logoutBtn = document.getElementById('logoutBtn');
@@ -36,8 +40,21 @@ const currencySymbols = {
 // Navigation state
 let currentPage = 'statistics';
 
+// Event Listeners for auth forms
+showLoginBtn.addEventListener('click', () => {
+    registrationForm.classList.add('hidden');
+    loginForm.classList.remove('hidden');
+});
+
+showRegisterBtn.addEventListener('click', () => {
+    loginForm.classList.add('hidden');
+    registrationForm.classList.remove('hidden');
+});
+
+authForm.addEventListener('submit', handleRegistration);
+loginAuthForm.addEventListener('submit', handleLogin);
+
 // Event Listeners
-authForm.addEventListener('submit', handleAuth);
 menuBtn.addEventListener('click', toggleMenu);
 closeMenuBtn.addEventListener('click', toggleMenu);
 logoutBtn.addEventListener('click', handleLogout);
@@ -54,6 +71,43 @@ cancelGoalBtn.addEventListener('click', () => goalModal.classList.add('hidden'))
 cancelExpenseBtn.addEventListener('click', () => expenseModal.classList.add('hidden'));
 goalForm.addEventListener('submit', handleGoalSubmit);
 expenseForm.addEventListener('submit', handleExpenseSubmit);
+
+// Auth handlers
+function handleRegistration(e) {
+    e.preventDefault();
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+
+    // Store user data
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    users.push({ email, password });
+    localStorage.setItem('users', JSON.stringify(users));
+    localStorage.setItem('currentUser', JSON.stringify({ email }));
+
+    // Show dashboard
+    registrationForm.classList.add('hidden');
+    dashboard.classList.remove('hidden');
+    showPage('statistics');
+}
+
+function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+
+    // Check credentials
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const user = users.find(u => u.email === email && u.password === password);
+
+    if (user) {
+        localStorage.setItem('currentUser', JSON.stringify({ email }));
+        loginForm.classList.add('hidden');
+        dashboard.classList.remove('hidden');
+        showPage('statistics');
+    } else {
+        alert('Неверный email или пароль');
+    }
+}
 
 // Navigation functions
 function showPage(pageName) {
@@ -83,9 +137,19 @@ function loadStatistics() {
     const goals = JSON.parse(localStorage.getItem('goals') || '[]');
     const expenses = JSON.parse(localStorage.getItem('expenses') || '[]');
 
+    if (goals.length === 0 && expenses.length === 0) {
+        statisticsPage.innerHTML = `
+            <div class="bg-white rounded-lg shadow-lg p-6 text-center animate-fadeIn">
+                <p class="text-lg text-gray-600 mb-4">
+                    У вас пока нет никакой статистики. Добавьте цели и расходы, чтобы увидеть статистику.
+                </p>
+            </div>
+        `;
+        return;
+    }
+
     const totalGoals = goals.length;
     const totalExpenses = expenses.length;
-
     const totalGoalAmount = goals.reduce((sum, goal) => sum + goal.amount, 0);
     const totalExpenseAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
 
@@ -114,21 +178,6 @@ function loadStatistics() {
     `;
 }
 
-function handleAuth(e) {
-    e.preventDefault();
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-
-    localStorage.setItem('user', JSON.stringify({ email }));
-
-    registrationForm.classList.add('hidden');
-    dashboard.classList.remove('hidden');
-
-    loadGoals();
-    loadExpenses();
-}
-
-// Toggle Menu
 function toggleMenu() {
     const isOpen = sideNav.classList.contains('translate-x-0');
     if (isOpen) {
@@ -142,11 +191,12 @@ function toggleMenu() {
 
 // Handle Logout
 function handleLogout() {
-    localStorage.removeItem('user');
+    localStorage.removeItem('currentUser');
     localStorage.removeItem('goals');
     localStorage.removeItem('expenses');
     dashboard.classList.add('hidden');
     registrationForm.classList.remove('hidden');
+    loginForm.classList.add('hidden');
     sideNav.classList.remove('translate-x-0');
     sideNav.classList.add('-translate-x-full');
 }
@@ -222,6 +272,17 @@ function handleExpenseSubmit(e) {
 // Load Goals
 function loadGoals() {
     const goals = JSON.parse(localStorage.getItem('goals') || '[]');
+    if (goals.length === 0) {
+        goalsList.innerHTML = `
+            <div class="bg-white rounded-lg shadow-lg p-6 text-center animate-fadeIn">
+                <p class="text-lg text-gray-600 mb-4">
+                    У вас пока нет целей. Нажмите + чтобы добавить новую цель.
+                </p>
+            </div>
+        `;
+        return;
+    }
+
     goalsList.innerHTML = goals.map(goal => `
         <div class="goal-card">
             <h3>${goal.title}</h3>
@@ -244,6 +305,17 @@ function loadGoals() {
 // Load Expenses
 function loadExpenses() {
     const expenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+    if (expenses.length === 0) {
+        expensesList.innerHTML = `
+            <div class="bg-white rounded-lg shadow-lg p-6 text-center animate-fadeIn">
+                <p class="text-lg text-gray-600 mb-4">
+                    У вас пока нет расходов. Нажмите + чтобы добавить новые расходы.
+                </p>
+            </div>
+        `;
+        return;
+    }
+
     expensesList.innerHTML = expenses.map(expense => `
         <div class="expense-card">
             <h3>${expense.title}</h3>
@@ -279,9 +351,10 @@ function getCategoryName(category) {
 
 // Check if user is logged in on page load
 window.addEventListener('load', () => {
-    const user = localStorage.getItem('user');
+    const user = localStorage.getItem('currentUser');
     if (user) {
         registrationForm.classList.add('hidden');
+        loginForm.classList.add('hidden');
         dashboard.classList.remove('hidden');
         showPage('statistics');
     }
