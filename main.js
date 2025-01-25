@@ -5,11 +5,22 @@ const authForm = document.getElementById('authForm');
 const menuBtn = document.getElementById('menuBtn');
 const sideNav = document.getElementById('sideNav');
 const logoutBtn = document.getElementById('logoutBtn');
-const addGoalBtn = document.getElementById('addGoalBtn');
+const addBtn = document.getElementById('addBtn');
+const typeModal = document.getElementById('typeModal');
+const addGoalType = document.getElementById('addGoalType');
+const addExpenseType = document.getElementById('addExpenseType');
 const goalModal = document.getElementById('goalModal');
+const expenseModal = document.getElementById('expenseModal');
 const goalForm = document.getElementById('goalForm');
+const expenseForm = document.getElementById('expenseForm');
 const cancelGoalBtn = document.getElementById('cancelGoalBtn');
+const cancelExpenseBtn = document.getElementById('cancelExpenseBtn');
 const goalsList = document.getElementById('goalsList');
+const expensesList = document.getElementById('expensesList');
+const goalsPage = document.getElementById('goalsPage');
+const expensesPage = document.getElementById('expensesPage');
+const statisticsPage = document.getElementById('statisticsPage');
+const closeMenuBtn = document.getElementById('closeMenuBtn');
 
 // Currency symbols mapping
 const currencySymbols = {
@@ -22,29 +33,99 @@ const currencySymbols = {
     'CHF': '₣'
 };
 
+// Navigation state
+let currentPage = 'statistics';
+
 // Event Listeners
 authForm.addEventListener('submit', handleAuth);
 menuBtn.addEventListener('click', toggleMenu);
+closeMenuBtn.addEventListener('click', toggleMenu);
 logoutBtn.addEventListener('click', handleLogout);
-addGoalBtn.addEventListener('click', () => goalModal.classList.remove('hidden'));
+addBtn.addEventListener('click', () => typeModal.classList.remove('hidden'));
+addGoalType.addEventListener('click', () => {
+    typeModal.classList.add('hidden');
+    goalModal.classList.remove('hidden');
+});
+addExpenseType.addEventListener('click', () => {
+    typeModal.classList.add('hidden');
+    expenseModal.classList.remove('hidden');
+});
 cancelGoalBtn.addEventListener('click', () => goalModal.classList.add('hidden'));
+cancelExpenseBtn.addEventListener('click', () => expenseModal.classList.add('hidden'));
 goalForm.addEventListener('submit', handleGoalSubmit);
+expenseForm.addEventListener('submit', handleExpenseSubmit);
 
-// Handle Authentication
+// Navigation functions
+function showPage(pageName) {
+    currentPage = pageName;
+    goalsPage.classList.add('hidden');
+    expensesPage.classList.add('hidden');
+    statisticsPage.classList.add('hidden');
+
+    switch(pageName) {
+        case 'goals':
+            goalsPage.classList.remove('hidden');
+            loadGoals();
+            break;
+        case 'expenses':
+            expensesPage.classList.remove('hidden');
+            loadExpenses();
+            break;
+        case 'statistics':
+            statisticsPage.classList.remove('hidden');
+            loadStatistics();
+            break;
+    }
+}
+
+// Load Statistics
+function loadStatistics() {
+    const goals = JSON.parse(localStorage.getItem('goals') || '[]');
+    const expenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+
+    const totalGoals = goals.length;
+    const totalExpenses = expenses.length;
+
+    const totalGoalAmount = goals.reduce((sum, goal) => sum + goal.amount, 0);
+    const totalExpenseAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+    statisticsPage.innerHTML = `
+        <div class="statistics-card">
+            <h2 class="text-xl font-semibold mb-4">Общая статистика</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="stat-item">
+                    <span class="stat-label">Всего целей</span>
+                    <span class="stat-value">${totalGoals}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Всего расходов</span>
+                    <span class="stat-value">${totalExpenses}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Сумма целей</span>
+                    <span class="stat-value">${totalGoalAmount.toLocaleString('ru-RU')} ₽</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Сумма расходов</span>
+                    <span class="stat-value">${totalExpenseAmount.toLocaleString('ru-RU')} ₽</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 function handleAuth(e) {
     e.preventDefault();
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
 
-    // Store user data (in real app, this would be handled by backend)
     localStorage.setItem('user', JSON.stringify({ email }));
 
-    // Show dashboard
     registrationForm.classList.add('hidden');
     dashboard.classList.remove('hidden');
 
-    // Load existing goals
     loadGoals();
+    loadExpenses();
 }
 
 // Toggle Menu
@@ -63,6 +144,7 @@ function toggleMenu() {
 function handleLogout() {
     localStorage.removeItem('user');
     localStorage.removeItem('goals');
+    localStorage.removeItem('expenses');
     dashboard.classList.add('hidden');
     registrationForm.classList.remove('hidden');
     sideNav.classList.remove('translate-x-0');
@@ -115,6 +197,28 @@ function handleGoalSubmit(e) {
     goalForm.reset();
 }
 
+// Handle Expense Submit
+function handleExpenseSubmit(e) {
+    e.preventDefault();
+
+    const formData = new FormData(expenseForm);
+    const expense = {
+        title: formData.get('title'),
+        date: formData.get('date'),
+        amount: parseFloat(formData.get('amount')),
+        currency: formData.get('currency'),
+        category: formData.get('category'),
+        createdAt: new Date().toISOString()
+    };
+
+    const existingExpenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+    localStorage.setItem('expenses', JSON.stringify([...existingExpenses, expense]));
+
+    loadExpenses();
+    expenseModal.classList.add('hidden');
+    expenseForm.reset();
+}
+
 // Load Goals
 function loadGoals() {
     const goals = JSON.parse(localStorage.getItem('goals') || '[]');
@@ -137,12 +241,64 @@ function loadGoals() {
     `).join('');
 }
 
+// Load Expenses
+function loadExpenses() {
+    const expenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+    expensesList.innerHTML = expenses.map(expense => `
+        <div class="expense-card">
+            <h3>${expense.title}</h3>
+            <div class="expense-info">
+                <span>Дата:</span>
+                <span>${new Date(expense.date).toLocaleDateString('ru-RU')}</span>
+            </div>
+            <div class="expense-info">
+                <span>Сумма:</span>
+                <span>${expense.amount.toLocaleString('ru-RU')} ${currencySymbols[expense.currency]}</span>
+            </div>
+            <div class="expense-info">
+                <span>Категория:</span>
+                <span>${getCategoryName(expense.category)}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Helper function to get category name
+function getCategoryName(category) {
+    const categories = {
+        food: 'Еда',
+        transport: 'Транспорт',
+        entertainment: 'Развлечения',
+        shopping: 'Покупки',
+        health: 'Здоровье',
+        utilities: 'Коммунальные услуги',
+        other: 'Другое'
+    };
+    return categories[category] || category;
+}
+
 // Check if user is logged in on page load
 window.addEventListener('load', () => {
     const user = localStorage.getItem('user');
     if (user) {
         registrationForm.classList.add('hidden');
         dashboard.classList.remove('hidden');
-        loadGoals();
+        showPage('statistics');
     }
+});
+
+// Add event listeners for navigation
+document.getElementById('goalsLink').addEventListener('click', () => {
+    showPage('goals');
+    toggleMenu();
+});
+
+document.getElementById('expensesLink').addEventListener('click', () => {
+    showPage('expenses');
+    toggleMenu();
+});
+
+document.getElementById('statisticsLink').addEventListener('click', () => {
+    showPage('statistics');
+    toggleMenu();
 });
