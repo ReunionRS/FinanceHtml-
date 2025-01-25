@@ -11,6 +11,17 @@ const goalForm = document.getElementById('goalForm');
 const cancelGoalBtn = document.getElementById('cancelGoalBtn');
 const goalsList = document.getElementById('goalsList');
 
+// Currency symbols mapping
+const currencySymbols = {
+    'RUB': '₽',
+    'BYN': 'Br',
+    'USD': '$',
+    'CNY': '¥',
+    'JPY': '¥',
+    'EUR': '€',
+    'CHF': '₣'
+};
+
 // Event Listeners
 authForm.addEventListener('submit', handleAuth);
 menuBtn.addEventListener('click', toggleMenu);
@@ -24,14 +35,14 @@ function handleAuth(e) {
     e.preventDefault();
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
-    
+
     // Store user data (in real app, this would be handled by backend)
     localStorage.setItem('user', JSON.stringify({ email }));
-    
+
     // Show dashboard
     registrationForm.classList.add('hidden');
     dashboard.classList.remove('hidden');
-    
+
     // Load existing goals
     loadGoals();
 }
@@ -61,41 +72,43 @@ function handleLogout() {
 // Handle Goal Submit
 function handleGoalSubmit(e) {
     e.preventDefault();
-    
+
     const formData = new FormData(goalForm);
     const title = formData.get('title');
     const targetDate = formData.get('targetDate');
     const amount = parseFloat(formData.get('amount'));
     const income = parseFloat(formData.get('income'));
-    
+    const currency = formData.get('currency');
+
     // Calculate months until target
     const today = new Date();
     const targetDateObj = new Date(targetDate);
-    const monthsUntilTarget = 
-        (targetDateObj.getFullYear() - today.getFullYear()) * 12 + 
+    const monthsUntilTarget =
+        (targetDateObj.getFullYear() - today.getFullYear()) * 12 +
         (targetDateObj.getMonth() - today.getMonth());
-    
+
     // Calculate required monthly savings
     const requiredMonthlySavings = amount / monthsUntilTarget;
     const maxPossibleMonthlySavings = income * 0.5; // Assume max 50% of income can be saved
-    
+
     if (requiredMonthlySavings > maxPossibleMonthlySavings) {
         alert('Внимание! С текущим доходом достижение цели к указанной дате может быть затруднительным. Рекомендуем увеличить срок или уменьшить целевую сумму.');
         return;
     }
-    
+
     const goal = {
         title,
         targetDate,
         amount,
+        currency,
         requiredMonthlySavings,
         createdAt: new Date().toISOString()
     };
-    
+
     // Save goal
     const existingGoals = JSON.parse(localStorage.getItem('goals') || '[]');
     localStorage.setItem('goals', JSON.stringify([...existingGoals, goal]));
-    
+
     // Update UI
     loadGoals();
     goalModal.classList.add('hidden');
@@ -114,11 +127,11 @@ function loadGoals() {
             </div>
             <div class="goal-info">
                 <span>Необходимая сумма:</span>
-                <span>${goal.amount.toLocaleString('ru-RU')} ₽</span>
+                <span>${goal.amount.toLocaleString('ru-RU')} ${currencySymbols[goal.currency]}</span>
             </div>
             <div class="goal-info">
                 <span>Ежемесячный взнос:</span>
-                <span class="monthly-savings">${Math.ceil(goal.requiredMonthlySavings).toLocaleString('ru-RU')} ₽</span>
+                <span class="monthly-savings">${Math.ceil(goal.requiredMonthlySavings).toLocaleString('ru-RU')} ${currencySymbols[goal.currency]}</span>
             </div>
         </div>
     `).join('');
